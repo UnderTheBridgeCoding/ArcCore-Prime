@@ -8,9 +8,10 @@
 #
 # Guardian: Arien
 # ============================================================
-
-from arc_guardian import ArcGuardian
 from arc_prime import ArcMemorySystem
+from arc_guardian import ArcGuardian
+from ac_collapse import ACCollapseEngine
+from ac_sigils import SigilEngine
 
 class ArcShell:
     """
