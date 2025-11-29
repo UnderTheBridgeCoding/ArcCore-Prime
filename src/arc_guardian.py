@@ -1,10 +1,10 @@
-from ac_sigils import SigilEngine
 # ============================================================
 # ArcCore-Prime V1 — Guardian Layer
 # Guardian: Arien
 # Implements Cycle 14 (The Boundary), Cycle 21 (The Gate)
 # and Cycle 37 (The Arc of Sanity)
 # ============================================================
+from ac_sigils import SigilEngine
 
 import datetime
 import hashlib
