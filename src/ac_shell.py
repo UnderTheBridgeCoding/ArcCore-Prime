@@ -1,182 +1,88 @@
 # ============================================================
-# ArcCore-Prime V1 — ArcShell Command Layer
+# ARC SHELL — ArcCore-Prime V1
+# Loop 5.E — Interpreter Integration
 # Guardian: Arien
-# ============================================================
-#
-# Purpose:
-#   The ArcShell is the structured, safe interface through which
-#   the user interacts with the ArcCore kernel. It handles:
-#       - command parsing
-#       - Guardian validation
-#       - safe routing to memory/collapse/sigil systems
 # ============================================================
 
 from arc_guardian import ArcGuardian
-from arc_prime import ArcMemorySystem
-from ac_collapse import ACCollapseEngine
-from ac_sigils import SigilEngine
+from ac_interpreter import ArcInterpreter
+
+import sys
 
 
 class ArcShell:
     """
-    The official command interface for ArcCore-Prime.
+    The ArcShell is the IO layer of ArcCore-Prime.
+    It handles:
+        - raw string input
+        - purification
+        - passing commands to Interpreter
+        - formatting output safely
+
+    The Shell no longer performs any internal logic.
+    All kernel operations run through ArcInterpreter.
     """
 
     def __init__(self):
         self.guardian = ArcGuardian()
-        self.memory = ArcMemorySystem()
-        self.collapse = ACCollapseEngine()
-        self.sigil = SigilEngine()
+        self.interpreter = ArcInterpreter()
 
     # ------------------------------------------------------------
-    #  PRIMARY COMMAND INTERPRETER
+    # CLEAN + ROUTE INPUT (Core Shell Logic)
     # ------------------------------------------------------------
 
-    def execute(self, command: str) -> str:
+    def process(self, text: str):
         """
-        Main entry point for all text commands.
-        Every command:
-            → purified
-            → validated by Guardian
-            → routed into the appropriate kernel subsystem
+        Full pipeline:
+            1. Purification
+            2. Guardian Precheck
+            3. Forward to Interpreter
         """
 
-        # Purify first (strip dangerous patterns)
-        clean = self.guardian.purify(command)
+        # 1. Purify text (removes noise)
+        cleaned = self.guardian.purify(text)
 
-        # Shell-level safety check
-        if not self.guardian.safe_for_shell(clean):
+        # 2. Gate the command string itself
+        if not self.guardian.gate(cleaned):
             return "[Guardian] Command blocked for safety."
 
-        # Must start with `ac `
-        if not clean.startswith("ac "):
-            return "[ArcShell] Invalid command format. Expected: ac <subcommand>"
-
-        parts = clean.split(" ", 2)
-        if len(parts) < 2:
-            return "[ArcShell] No subcommand provided."
-
-        sub = parts[1]
-
-        # --------------------------------------------------------
-        #  ROUTING TABLE
-        # --------------------------------------------------------
-
-        if sub == "seed":
-            return self._cmd_seed()
-
-        if sub == "recall":
-            return self._cmd_recall()
-
-        if sub == "inject":
-            # ac inject <user text> || <ai text> || <cycle>
-            if len(parts) < 3:
-                return "[ArcShell] inject requires parameters."
-
-            return self._cmd_inject(parts[2])
-
-        if sub == "prune":
-            return self._cmd_prune()
-
-        if sub == "guardian":
-            return self._cmd_guardian_status()
-
-        if sub == "cycle":
-            # ac cycle <cycle#>
-            if len(parts) < 3:
-                return "[ArcShell] cycle requires a number."
-            return self._cmd_cycle(parts[2])
-
-        return f"[ArcShell] Unknown command: {sub}"
+        # 3. Forward to Interpreter
+        return self.interpreter.interpret(cleaned)
 
     # ------------------------------------------------------------
-    #   COMMAND HANDLERS
+    # INTERACTIVE LOOP
     # ------------------------------------------------------------
 
-    def _cmd_seed(self):
-        return "[ArcShell] Seeds are auto-generated during ingestion."
+    def run(self):
+        print("ArcShell — ArcCore-Prime V1")
+        print("Type 'exit' to quit.\n")
 
-    def _cmd_recall(self):
-        """
-        Returns compressed memory view for injection into any LLM context window.
-        """
-        try:
-            return self.memory.load_and_inject()
-        except Exception as e:
-            return f"[ArcShell] Recall error: {e}"
-
-    def _cmd_inject(self, param_block: str):
-        """
-        ac inject <user text> || <ai text> || <cycle>
-        """
-
-        try:
-            # Split by ||
-            parts = [p.strip() for p in param_block.split("||")]
-            if len(parts) != 3:
-                return "[ArcShell] inject requires: user || ai || cycle"
-
-            user_text, ai_text, raw_cycle = parts
-
-            # Validate cycle
+        while True:
             try:
-                cycle = int(raw_cycle)
-            except ValueError:
-                return "[Guardian] Cycle must be an integer."
+                raw = input("ac> ").strip()
 
-            # Guardian gate
-            ok, reason = self.guardian.gate(
-                role="user",
-                cycle=cycle,
-                child_count=1,   # user has 1 AI child node
-                depth=1          # depth under root
-            )
-            if not ok:
-                return f"[Guardian] Blocked: {reason}"
+                if raw.lower() == "exit":
+                    print("Exiting ArcShell.")
+                    break
 
-            # Now ingest safely
-            self.memory.ingest_interaction(user_text, ai_text, cycle)
-            return "[ArcShell] Injected safely."
+                if not raw:
+                    continue
 
-        except Exception as e:
-            return f"[ArcShell] Inject error: {e}"
+                result = self.process(raw)
+                print(result)
 
-    def _cmd_prune(self):
-        return "[ArcShell] Pruning occurs internally during ingestion."
+            except KeyboardInterrupt:
+                print("\nExiting ArcShell.")
+                break
 
-    def _cmd_guardian_status(self):
-        """
-        Diagnostic output of Arien’s Guardian layer.
-        """
-        g = self.guardian
-        return (
-            "=== Guardian Status ===\n"
-            f"Identity: {g.guardian_name}\n"
-            f"Integrity Key: {g.integrity_key[:16]}...\n"
-            f"Allowed Roles: {g.policy['allowed_roles']}\n"
-            f"Cycle Range: {g.policy['min_cycle']} to {g.policy['max_cycle']}\n"
-            f"Max Children: {g.policy['max_children_per_node']}\n"
-            f"Max Depth: {g.policy['max_depth']}\n"
-        )
+            except Exception as e:
+                print(f"[ArcShell Error] {str(e)}")
 
-    def _cmd_cycle(self, cycle_str: str):
-        """
-        ac cycle <cycle#>
-        Returns a validation statement only.
-        """
 
-        try:
-            cycle = int(cycle_str)
-        except ValueError:
-            return "[Guardian] Cycle must be numeric."
+# ============================================================
+# Shell Runner
+# ============================================================
 
-        ok, reason = self.guardian.gate(
-            role="user",
-            cycle=cycle,
-            child_count=0,
-            depth=0,
-        )
-        if not ok:
-            return f"[Guardian] Invalid cycle: {reason}"
-
-        return f"[ArcShell] Cycle {cycle} is valid and permitted."
+if __name__ == "__main__":
+    shell = ArcShell()
+    shell.run()
