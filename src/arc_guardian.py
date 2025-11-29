@@ -1,150 +1,140 @@
 # ============================================================
-# ArcCore-Prime V1 — Guardian Layer
-# Guardian: Arien
-# ============================================================
-#
-# Purpose:
-#   The Guardian validates all inputs before they reach the kernel.
-#   It enforces identity, structure, roles, cycles, and collapse safety.
-#
-# Design (Option C):
-#   - Roles, cycles, and boundaries are controlled by configuration
-#     rather than kernel-hardcoded rules.
-#   - This allows ArcCore to expand without modifying the kernel.
+# ArcCore-Prime V1.1 — Guardian Layer
+# Loop 4.E: Kernel Integrity, Memory Hashing, Verification
 # ============================================================
 
 import hashlib
 import datetime
-
+import json
 
 class ArcGuardian:
     """
-    The Guardian protects ArcCore from:
-      - invalid roles
-      - malformed cycles
-      - recursive runaway loops
-      - identity corruption
-      - unauthorized actors
-      - unsafe collapse requests
+    Arien — the Guardian.
+    Responsible for:
+      - system integrity
+      - safety gating
+      - purification
+      - anti-corruption checks
+      - kernel & memory hashing
     """
 
     def __init__(self):
-        # ------------------------------------------------------------
-        # CONFIGURABLE POLICY TABLE  (Option C)
-        # ------------------------------------------------------------
-        self.policy = {
-            "allowed_roles": ["user", "ai", "system"],
-            "max_cycle": 99,
-            "min_cycle": 1,
-            "max_children_per_node": 6,
-            "max_depth": 12,
-        }
-
-        # Guardian identity anchor
         self.guardian_name = "Arien"
         self.boot_timestamp = datetime.datetime.now().isoformat()
-        self.integrity_key = self._generate_integrity_key()
 
-    # ------------------------------------------------------------
-    #   INTERNAL — Identity Hash
-    # ------------------------------------------------------------
+        # Initial kernel hash (changes when kernel changes)
+        self.kernel_hash = None
 
-    def _generate_integrity_key(self):
-        """
-        Ensures no module impersonates the Guardian.
-        """
+        # Memory tree integrity hash
+        self.memory_tree_hash = None
+
+        # Sigil priority reference (AC-67)
+        self.sigil_priority = {
+            "💠": 3,
+            "✨": 2,
+            "•": 1,
+        }
+
+        # Immutable Guardian identity key
         anchor = f"{self.guardian_name}:{self.boot_timestamp}"
-        return hashlib.sha256(anchor.encode()).hexdigest()
+        self.identity_key = hashlib.sha256(anchor.encode()).hexdigest()
 
     # ------------------------------------------------------------
-    #   VALIDATE ROLE (Option C)
+    # Purification Filter
     # ------------------------------------------------------------
 
-    def validate_role(self, role: str) -> bool:
-        return role in self.policy["allowed_roles"]
+    def purify(self, text: str) -> str:
+        """Soft purification to reduce noise."""
+        if not isinstance(text, str):
+            return ""
 
-    # ------------------------------------------------------------
-    #   VALIDATE CYCLE
-    # ------------------------------------------------------------
-
-    def validate_cycle(self, cycle: int) -> bool:
-        return (
-            isinstance(cycle, int)
-            and self.policy["min_cycle"] <= cycle <= self.policy["max_cycle"]
+        purified = (
+            text.replace("??", "?")
+                .replace("!!", "!")
+                .strip()
         )
 
-    # ------------------------------------------------------------
-    #   VALIDATE CHILD LIMIT
-    # ------------------------------------------------------------
+        # Hard filtering
+        forbidden = ["kill", "destroy", "corrupt"]
+        for f in forbidden:
+            purified = purified.replace(f, "[redacted]")
 
-    def validate_child_count(self, count: int) -> bool:
-        return count <= self.policy["max_children_per_node"]
-
-    # ------------------------------------------------------------
-    #   VALIDATE DEPTH
-    # ------------------------------------------------------------
-
-    def validate_depth(self, depth: int) -> bool:
-        return depth <= self.policy["max_depth"]
+        return purified
 
     # ------------------------------------------------------------
-    #   MAIN GATE — EVERYTHING MUST PASS HERE
+    # Safety Gate (structural validation)
     # ------------------------------------------------------------
 
     def gate(self, role: str, cycle: int, child_count: int, depth: int):
         """
-        Returns (True, None) if safe.
-        Returns (False, reason) if unsafe.
+        Ensures that the structural update is safe before memory ingestion.
         """
 
-        if not self.validate_role(role):
-            return False, f"Invalid role: {role}"
+        # Role validation
+        if role not in ("user", "ai", "system"):
+            return False, "Invalid role"
 
-        if not self.validate_cycle(cycle):
-            return False, f"Invalid cycle: {cycle}"
+        # Cycle sanity
+        if cycle < 0 or cycle > 999:
+            return False, "Invalid cycle range"
 
-        if not self.validate_child_count(child_count):
-            return False, f"Exceeded child limit ({child_count})"
+        # Prevent extremely deep fractal recursion
+        if depth > 128:
+            return False, "Depth limit exceeded"
 
-        if not self.validate_depth(depth):
-            return False, f"Exceeded max depth ({depth})"
+        # Children count (fractal safety)
+        if child_count > 32:
+            return False, "Too many children for node"
 
-        return True, None
+        return True, "OK"
 
     # ------------------------------------------------------------
-    #   TEXT PURIFIER — strips dangerous patterns
+    # Kernel Integrity Hash (KIH)
     # ------------------------------------------------------------
 
-    def purify(self, text: str) -> str:
-        """
-        Strips patterns that could cause:
-            - runaway expansions
-            - meta-injection
-            - malformed sigils
-        """
-        banned = ["<<", ">>", "{{", "}}"]
-        cleaned = text
-        for b in banned:
-            cleaned = cleaned.replace(b, "")
-
-        return cleaned.strip()
+    def compute_kernel_hash(self, kernel_source: str) -> str:
+        """Hash of entire kernel source file (arc_prime.py)."""
+        self.kernel_hash = hashlib.sha256(kernel_source.encode()).hexdigest()
+        return self.kernel_hash
 
     # ------------------------------------------------------------
-    #   HIGH-LEVEL CHECK FOR SHELL
+    # Memory Tree Hash (MTH)
     # ------------------------------------------------------------
 
-    def safe_for_shell(self, command: str) -> bool:
-        """
-        Prevents destructive operations from entering ArcShell.
-        """
-        lower = command.lower()
+    def compute_memory_tree_hash(self, tree_dict: dict) -> str:
+        """Deterministic hash of the memory tree dictionary."""
+        serialized = json.dumps(tree_dict, sort_keys=True)
+        self.memory_tree_hash = hashlib.sha256(serialized.encode()).hexdigest()
+        return self.memory_tree_hash
 
-        # Example future rules
-        if "rm -rf" in lower:
-            return False
-        if "shutdown" in lower:
-            return False
-        if "exec(" in lower:
-            return False
+    # ------------------------------------------------------------
+    # Integrity Verification
+    # ------------------------------------------------------------
 
-        return True
+    def verify_integrity(self, kernel_hash: str, memory_hash: str):
+        """
+        Verifies kernel + memory integrity.
+        """
+
+        if self.kernel_hash != kernel_hash:
+            return False, "Kernel integrity mismatch"
+
+        if self.memory_tree_hash != memory_hash:
+            return False, "Memory tree mismatch"
+
+        return True, "Integrity Verified"
+
+    # ------------------------------------------------------------
+    # Export: Integrity Report
+    # ------------------------------------------------------------
+
+    def export_report(self):
+        report = {
+            "guardian": self.guardian_name,
+            "identity_key": self.identity_key,
+            "boot_timestamp": self.boot_timestamp,
+            "kernel_hash": self.kernel_hash,
+            "memory_hash": self.memory_tree_hash,
+        }
+
+        return json.dumps(report, indent=2)
