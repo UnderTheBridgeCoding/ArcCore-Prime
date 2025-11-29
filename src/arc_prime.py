@@ -1,3 +1,8 @@
+# ============================================================
+# ARC MEMORY KERNEL — ArcCore-Prime V1
+# Guardian Layer: Arien
+# ============================================================
+
 from ac_sigils import SigilEngine
 from ac_collapse import ACCollapseEngine
 from arc_guardian import ArcGuardian
@@ -7,10 +12,6 @@ import uuid
 from datetime import datetime
 from typing import List
 
-# ============================================================
-# ARC MEMORY KERNEL — ArcCore-Prime V1
-# Guardian Layer: Arien
-# ============================================================
 
 class HarmonicNode:
     """
