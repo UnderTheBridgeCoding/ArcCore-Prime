@@ -1,6 +1,6 @@
 # ============================================================
 # ARC INTERPRETER ENGINE — ArcCore-Prime V1
-# Cycle 12 — The Interpreter
+# Loop 6.B — Structural Reconstruction Integration
 # Guardian: Arien
 # ============================================================
 
@@ -8,8 +8,7 @@ from arc_guardian import ArcGuardian
 from arc_prime import ArcMemorySystem
 from ac_sigils import SigilEngine
 from ac_collapse import ACCollapseEngine
-
-import json
+from ac_reconstruct import ArcReconstruct
 
 
 class ArcInterpreter:
@@ -17,15 +16,13 @@ class ArcInterpreter:
     The Interpreter transforms cleaned user commands into
     validated internal ArcCore actions.
 
-    Processing pipeline:
-      1. Command text (from ArcShell)
-      2. Guardian gate (input safety)
-      3. Intent parsing
-      4. Guardian validation (intent safety)
-      5. Routed execution
-      6. Structured return value
+    Now extended with:
+      - ac reconstruct
+      - ac thread <cycle>
+      - ac summary
 
-    Implements Cycle 12.
+    Implements Cycle 12 (Interpreter Logic)
+    and Cycle 31/33 (Reconstruction Pathways)
     """
 
     def __init__(self):
@@ -33,150 +30,125 @@ class ArcInterpreter:
         self.memory = ArcMemorySystem()
         self.sigil = SigilEngine()
         self.collapse = ACCollapseEngine()
+        self.reconstruct = ArcReconstruct()
 
-        # Routing table for Option B (Expanded Command Set)
+        # Routing table (Expanded Command Set)
         self.routes = {
-            "seed": self.cmd_seed,
-            "prune": self.cmd_prune,
+            # Memory inspection
             "walk": self.cmd_walk,
-            "inject": self.cmd_inject,
-            "recall": self.cmd_recall,
             "export": self.cmd_export,
-            "collapse": self.cmd_collapse,
-            "guardian": self.cmd_guardian_status,
+
+            # Interaction insertion
+            "inject": self.cmd_inject,
+
+            # Sigils
             "sigil": self.cmd_sigil_test,
+
+            # Guardian diagnostics
+            "guardian": self.cmd_guardian_status,
+
+            # Reconstruction engine
+            "reconstruct": self.cmd_reconstruct_full,
+            "thread": self.cmd_reconstruct_thread,
+            "summary": self.cmd_summary,
+
+            # Placeholder collapse/seed/prune
+            "collapse": self.cmd_collapse,
         }
 
     # ============================================================
-    # INTENT PARSER
+    # PARSE INTENT
     # ============================================================
 
     def parse_intent(self, text: str):
-        """
-        Parses cleaned "ac <command>" into ("command", arguments).
-        """
         parts = text.split(" ", 2)
         if len(parts) < 2:
             return None, None
-
         cmd = parts[1].strip()
         args = parts[2] if len(parts) >= 3 else ""
-
         return cmd, args
 
     # ============================================================
-    # INTERPRET ENTRY POINT
+    # INTERPRET → ROUTE
     # ============================================================
 
     def interpret(self, cleaned: str):
-        """
-        Main Interpreter entry.
-        """
-
-        # 1. Guardian checks input text itself
         if not self.guardian.gate(cleaned):
-            return "[Guardian] Command blocked for safety."
+            return "[Guardian] Command blocked."
 
-        # 2. Parse intent
         cmd, args = self.parse_intent(cleaned)
-
         if cmd is None:
-            return "[Interpreter] Invalid command structure."
+            return "[Interpreter] Invalid command."
 
-        # 3. Guardian validates intent safely
         if not self.guardian.validate_intent(cmd):
             return f"[Guardian] Intent '{cmd}' is not permitted."
 
-        # 4. Route to handler
         handler = self.routes.get(cmd)
         if handler is None:
             return f"[Interpreter] Unknown command '{cmd}'."
 
-        # 5. Execute safely
         try:
             return handler(args)
         except Exception as e:
             return f"[Interpreter Error] {str(e)}"
 
     # ============================================================
-    # COMMAND HANDLER IMPLEMENTATIONS (Option B)
+    # COMMAND HANDLERS
     # ============================================================
 
-    def cmd_seed(self, args: str):
-        """
-        Compress a piece of content using a temporary HarmonicNode.
-        """
-        temp = self.memory.root  # not ideal, replaced later by AC-31 expansion
-        node = temp  # placeholder
-        return "[seed] Not yet directly exposed."
-
-    def cmd_prune(self, args: str):
-        """
-        Prune raw text into a seed directly.
-        """
-        node = self.memory.root  # placeholder
-        return "[prune] Not yet directly exposed."
-
     def cmd_walk(self, args: str):
-        """
-        Walk the compressed memory tree.
-        """
         return self.memory.load_and_inject()
 
+    def cmd_export(self, args: str):
+        self.memory.save_memory()
+        return "[export] Memory saved."
+
     def cmd_inject(self, args: str):
-        """
-        Inject a new user→ai message pair into memory.
-        Format:
-            ac inject <user>|<ai>|<cycle>
-        """
         try:
             parts = args.split("|")
             if len(parts) != 3:
                 return "[inject] Format: ac inject user|ai|cycle"
-
             user_text = parts[0].strip()
             ai_text = parts[1].strip()
             cycle_context = int(parts[2].strip())
-
             self.memory.ingest_interaction(user_text, ai_text, cycle_context)
             return "[inject] Interaction added."
-
         except Exception as e:
             return f"[inject error] {str(e)}"
 
-    def cmd_recall(self, args: str):
-        """
-        Rebuild compressed memory seeds into readable form.
-        Useful later when reconstruction improves.
-        """
-        return "[recall] Reconstruction is seed-level only for now."
-
-    def cmd_export(self, args: str):
-        """
-        Export the memory JSON file.
-        """
-        self.memory.save_memory()
-        return "[export] Memory saved."
-
-    def cmd_collapse(self, args: str):
-        """
-        Direct access to the collapse engine (AC-70).
-        Expands on future loop logic.
-        """
-        return "[collapse] CollapseEngine is initialized and ready."
-
-    def cmd_guardian_status(self, args: str):
-        """
-        Returns Guardian metadata.
-        """
-        return self.guardian.status_report()
-
     def cmd_sigil_test(self, args: str):
-        """
-        Evaluates a piece of text for sigil priority.
-        """
-        if not args.strip():
-            return "[sigil] Provide text: ac sigil <text>"
-
         score = self.sigil.evaluate(args)
         return f"[sigil] Priority = {score}"
+
+    def cmd_guardian_status(self, args: str):
+        return self.guardian.status_report()
+
+    def cmd_collapse(self, args: str):
+        return "[collapse] Collapse engine is active."
+
+    # ============================================================
+    # RECONSTRUCTION COMMANDS (Loop 6)
+    # ============================================================
+
+    def cmd_reconstruct_full(self, args: str):
+        """Full structural reconstruction of the entire tree."""
+        tree = self.memory.root.to_dict()
+        return self.reconstruct.reconstruct_full(tree)
+
+    def cmd_reconstruct_thread(self, args: str):
+        """Reconstruct only the nodes belonging to a specific cycle."""
+        if not args.strip():
+            return "[thread] Usage: ac thread <cycle>"
+        try:
+            cycle_id = int(args.strip())
+            tree = self.memory.root.to_dict()
+            lines = self.reconstruct.reconstruct_thread(tree, cycle_id)
+            return "\n".join(lines) if lines else "[thread] No entries found."
+        except:
+            return "[thread] Invalid cycle ID."
+
+    def cmd_summary(self, args: str):
+        """High-level reconstruction summary."""
+        tree = self.memory.root.to_dict()
+        lines = self.reconstruct.reconstruct_path(tree, depth=0)
+        return "\n".join(lines)
