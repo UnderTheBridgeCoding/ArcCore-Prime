@@ -1,69 +1,95 @@
 # ============================================================
-# ACReconstruct — ArcCore Memory Reconstruction Engine
-# ============================================================
-#
-# Purpose:
-#   Reconstructs human-readable meaning from collapsed
-#   ArcCore memory trees. Reconstruction is deterministic,
-#   meaning-first, and compression-aware.
-#
+# ARC RECONSTRUCTION ENGINE — ArcCore-Prime V1
+# Loop 6 — Structural Reconstruction
+# Loop 2.2 — Compression-Aware Reconstruction
+# Guardian: Arien
 # ============================================================
 
-from typing import Dict, Any, List
+from typing import List, Dict, Any
 from ac_collapse import CompressionLevel
 
 
 class ArcReconstruct:
     """
-    Deterministic reconstruction engine.
+    Deterministic reconstruction engine for ArcCore-Prime.
 
-    Reconstructs memory from:
-      - raw content
-      - summaries
-      - auric seeds
-      - sigil anchors
-
-    Reconstruction behavior is governed by compression level.
+    Responsibilities:
+      - Walk structural paths in the memory tree
+      - Rebuild multi-node meaning from seeds
+      - Create threads (cycle-sorted or path-sorted)
+      - Generate readable reconstructed output
+      - Respect compression fidelity (Loop 2.2)
     """
 
-    def __init__(self):
-        pass
-
     # ------------------------------------------------------------
-    # Seed Expansion
+    # SEED EXPANSION (deterministic)
     # ------------------------------------------------------------
 
     def expand_seed(self, seed: str) -> str:
         """
-        Expands an auric seed into a readable semantic statement.
-        This is deterministic and does not hallucinate.
+        Deterministic seed expansion:
+        Converts a compressed seed into a richer contextual statement.
+        Uses structural logic, not generative models.
         """
-        if not seed:
-            return "[No seed available]"
-        return seed.replace("[AutoSeed", "[Seed")
+        if seed is None:
+            return "(no seed)"
+
+        if seed.startswith("[AC-"):
+            cycle_tag = seed.split("]")[0][1:]
+            body = seed.split("] ", 1)[-1]
+            return f"({cycle_tag}) → {body}"
+
+        if seed.startswith("[Seed AC-"):
+            cycle_tag = seed.split("]")[0][1:]
+            body = seed.split("]: ", 1)[-1]
+            return f"({cycle_tag}) → {body}"
+
+        return f"(expanded) {seed}"
 
     # ------------------------------------------------------------
-    # Path-Based Reconstruction (existing logic)
+    # PATH-BASED RECONSTRUCTION (RAW / SUMMARY)
     # ------------------------------------------------------------
 
     def reconstruct_path(self, node: Dict[str, Any], depth: int = 0) -> List[str]:
         """
         Reconstructs a node and its children structurally.
-        Used for RAW and SUMMARY tiers.
+        Used for RAW and SUMMARY compression levels.
         """
-        lines = []
+        output = []
         indent = "  " * depth
 
+        seed = node.get("seed") or node.get("content")
+        expanded = self.expand_seed(seed)
+        cycle = node.get("cycle")
         role = node.get("role", "").upper()
-        cycle = node.get("cycle", 0)
-        seed = node.get("seed") or node.get("content", "[No content]")
 
-        lines.append(f"{indent}[AC-{cycle}] {role}: {seed}")
+        output.append(f"{indent}[AC-{cycle}] {role}: {expanded}")
 
         for child in node.get("children", []):
-            lines.extend(self.reconstruct_node(child, depth + 1))
+            output.extend(self.reconstruct_node(child, depth + 1))
 
-        return lines
+        return output
+
+    # ------------------------------------------------------------
+    # CYCLE-BASED THREAD RECONSTRUCTION
+    # ------------------------------------------------------------
+
+    def reconstruct_thread(self, tree: Dict[str, Any], cycle_id: int) -> List[str]:
+        """
+        Returns all nodes belonging to a given cycle, expanded.
+        Compression level is respected per node.
+        """
+        results = []
+
+        def walk(n: Dict[str, Any]):
+            if int(n.get("cycle", -1)) == cycle_id:
+                results.extend(self.reconstruct_node(n))
+
+            for child in n.get("children", []):
+                walk(child)
+
+        walk(tree)
+        return results
 
     # ------------------------------------------------------------
     # COMPRESSION-AWARE DISPATCH (Loop 2.2)
@@ -71,45 +97,42 @@ class ArcReconstruct:
 
     def reconstruct_node(self, node: Dict[str, Any], depth: int = 0) -> List[str]:
         """
-        Dispatches reconstruction based on compression level.
-
-        Reconstruction is meaning-first and tier-respecting.
+        Dispatch reconstruction based on compression level.
+        Reconstruction is meaning-first and fidelity-honest.
         """
 
         level = node.get("compression_level", CompressionLevel.RAW)
+        indent = "  " * depth
+        role = node.get("role", "").upper()
+        cycle = node.get("cycle")
 
-        # RAW and SUMMARY behave structurally
+        # RAW and SUMMARY — full structural traversal
         if level in (CompressionLevel.RAW, CompressionLevel.SUMMARY):
             return self.reconstruct_path(node, depth)
 
-        # SEED: expand auric seed only
+        # SEED — expand auric seed only
         if level == CompressionLevel.SEED:
-            indent = "  " * depth
             expanded = self.expand_seed(node.get("seed"))
-            role = node.get("role", "").upper()
-            cycle = node.get("cycle", 0)
             return [f"{indent}[AC-{cycle}] {role}: {expanded}"]
 
-        # SIGIL_ONLY: honest boundary
+        # SIGIL_ONLY — honest boundary
         if level == CompressionLevel.SIGIL_ONLY:
-            indent = "  " * depth
-            role = node.get("role", "").upper()
-            cycle = node.get("cycle", 0)
             return [
-                f"{indent}[AC-{cycle}] {role}: [Sigil Anchor — reconstruction required]"
+                f"{indent}[AC-{cycle}] {role}: "
+                "[Sigil Anchor — reconstruction required]"
             ]
 
         # Defensive fallback
-        return ["[Unrecognized compression level]"]
+        return [f"{indent}[AC-{cycle}] {role}: [Unknown compression state]"]
 
     # ------------------------------------------------------------
-    # Full Tree Reconstruction
+    # FULL TREE RECONSTRUCTION (pretty print)
     # ------------------------------------------------------------
 
     def reconstruct_full(self, tree: Dict[str, Any]) -> str:
         """
-        Reconstructs the entire memory tree into a readable summary,
-        respecting compression levels.
+        Reconstructs the entire tree into a human-readable
+        structural summary, respecting compression levels.
         """
         lines = self.reconstruct_node(tree)
         return "\n".join(lines)
