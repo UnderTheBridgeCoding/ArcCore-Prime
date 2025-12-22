@@ -114,18 +114,15 @@ class ArcMemorySystem:
     # ------------------------------------------------------------
 
     def ingest_interaction(self, user_text: str, ai_text: str, cycle_context: int):
-        # Purify inputs
         clean_user = self.guardian.purify(user_text)
         clean_ai = self.guardian.purify(ai_text)
 
         user_node = HarmonicNode("user", clean_user, cycle_context)
         ai_node   = HarmonicNode("ai",   clean_ai,   cycle_context)
 
-        # Priority (AC-67)
         user_node.apply_sigil_priority(self.sigil)
         ai_node.apply_sigil_priority(self.sigil)
 
-        # Structural gate
         ok_u, msg_u = self.guardian.gate(user_node.role, user_node.cycle_alignment, 1, depth=1)
         ok_a, msg_a = self.guardian.gate(ai_node.role,   ai_node.cycle_alignment,   0, depth=2)
 
@@ -134,17 +131,13 @@ class ArcMemorySystem:
         if not ok_a:
             raise RuntimeError(f"[Guardian] AI-node rejected: {msg_a}")
 
-        # Link
         user_node.children.append(ai_node)
 
-        # Collapse
         user_node.prune_to_seed()
         ai_node.prune_to_seed()
 
-        # Append to tree
         self.root.children.append(user_node)
 
-        # Update memory tree integrity hash
         self.memory_hash = self.guardian.compute_memory_tree_hash(self.root.to_dict())
 
     # ============================================================
@@ -173,7 +166,7 @@ class ArcMemorySystem:
         print(f"[ArcCore] Memory + Integrity saved → {filename}")
 
     # ============================================================
-    #  LOAD + INJECT (with verification)
+    #  LOAD + INJECT (with verification) — Loop 1.1 Hardened
     # ============================================================
 
     def load_and_inject(self, filename="arccore_memory.json"):
@@ -187,14 +180,29 @@ class ArcMemorySystem:
         stored_mem = integrity.get("memory_hash")
 
         ok, msg = self.guardian.verify_integrity(stored_kernel, stored_mem)
-
         status = "OK" if ok else f"WARNING — {msg}"
 
         buffer = [f"[Integrity: {status}]"]
 
-        # Walk compressed seeds
+        max_depth = 50  # Hard recursion ceiling
+        visited = set()  # Traversal-local cycle detection
+
         def walk(node, depth=0):
             indent = "  " * depth
+
+            # Prefer stable node IDs when present; fallback identity is traversal-local only
+            node_id = node.get("id")
+            node_key = node_id if node_id is not None else id(node)
+
+            # Cycle guard: prevents infinite recursion on malformed or cyclical graphs
+            if node_key in visited:
+                warning = f"Cycle detected at node {node_key}; skipping children"
+                buffer.append(f"{indent}[{warning}]")
+                print(f"[ArcCore Warning] {warning}")
+                return
+
+            visited.add(node_key)
+
             seed = node.get("seed") or node.get("content")
             cycle = node.get("cycle")
             role = node.get("role", "").upper()
@@ -202,6 +210,13 @@ class ArcMemorySystem:
             marker = "💠" if priority >= 3 else "•"
 
             buffer.append(f"{indent}{marker} [AC-{cycle}] {role}: {seed}")
+
+            # Depth guard: stop descending after logging the ceiling node
+            if depth >= max_depth:
+                warning = f"Traversal halted: depth limit {max_depth} reached at node {node_key}"
+                buffer.append(f"{indent}[{warning}]")
+                print(f"[ArcCore Warning] {warning}")
+                return
 
             for child in node.get("children", []):
                 walk(child, depth + 1)
