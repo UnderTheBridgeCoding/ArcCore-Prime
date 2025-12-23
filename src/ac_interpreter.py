@@ -3,6 +3,7 @@
 # Command Execution Layer with Guardian Integration
 # ============================================================
 
+from arc_guardian import ArcGuardian
 from arc_prime import ArcMemorySystem
 from ac_reconstruct import ArcReconstruct
 
@@ -12,8 +13,8 @@ class ArcInterpreter:
     Acts as the bridge between the shell/console and the memory kernel.
     """
 
-    def __init__(self, guardian):
-        self.guardian = guardian
+    def __init__(self, guardian=None):
+        self.guardian = guardian if guardian else ArcGuardian()
         self.memory = ArcMemorySystem()
         self.reconstruct = ArcReconstruct()
 
