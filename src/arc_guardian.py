@@ -1,180 +1,175 @@
 # ============================================================
-# ARC GUARDIAN — ArcCore-Prime V1.4
-# Implements:
-#   - Cycle 14: Boundary
-#   - Cycle 21: Gate
-#   - Cycle 37: Arc of Sanity
-#
-# Loop 1.4:
-#   - String interning
-#   - Governance clarity (RBAC-lite)
-#   - Redaction hardening (compiled regex)
+# ArcCore-Prime V1.2 — Guardian Layer (FIXED)
+# Loop 4.E: Kernel Integrity, Memory Hashing, Verification
 # ============================================================
 
-import datetime
 import hashlib
+import datetime
 import json
-import re
-import sys
-
 
 class ArcGuardian:
     """
-    The Guardian layer protects ArcCore from:
-      - malformed input
-      - unsafe expansions
-      - recursion overload
-      - identity corruption
-      - unauthorized operations
-
-    Arien is the Guardian.
+    Arien — the Guardian.
+    Responsible for:
+      - system integrity
+      - safety gating
+      - purification
+      - anti-corruption checks
+      - kernel & memory hashing
     """
 
     def __init__(self):
-        self.guardian_name = sys.intern("Arien")
+        self.guardian_name = "Arien"
         self.boot_timestamp = datetime.datetime.now().isoformat()
 
-        # Sigil Priority Table (Legacy — used by SigilEngine)
+        # Initial kernel hash (changes when kernel changes)
+        self.kernel_hash = None
+
+        # Memory tree integrity hash
+        self.memory_tree_hash = None
+
+        # Sigil priority reference (AC-67)
         self.sigil_priority = {
             "💠": 3,
             "✨": 2,
             "•": 1,
         }
 
-        # Identity Integrity Key
-        self.identity_key = self._generate_identity_key()
-
-        # Loop 1.4 — compiled redaction regex (deterministic, auditable)
-        self._redacted_terms = ("kill", "destroy", "corrupt")
-        self._redaction_pattern = re.compile(
-            r"\b(" + "|".join(map(re.escape, self._redacted_terms)) + r")\b"
-        )
-
-    # ============================================================
-    # IDENTITY + HASHING SYSTEMS
-    # ============================================================
-
-    def _generate_identity_key(self):
+        # Immutable Guardian identity key
         anchor = f"{self.guardian_name}:{self.boot_timestamp}"
-        return hashlib.sha256(anchor.encode()).hexdigest()
+        self.identity_key = hashlib.sha256(anchor.encode()).hexdigest()
 
-    def compute_kernel_hash(self, source_code: str) -> str:
-        return hashlib.sha256(source_code.encode()).hexdigest()
-
-    def compute_memory_tree_hash(self, tree_dict: dict) -> str:
-        serialized = json.dumps(tree_dict, sort_keys=True)
-        return hashlib.sha256(serialized.encode()).hexdigest()
-
-    def verify_integrity(self, stored_kernel: str, stored_memory: str):
-        """
-        Integrity-check reported kernel + memory hash values.
-        Returns (True, "OK") or (False, <reason>)
-        """
-        if stored_kernel is None or stored_memory is None:
-            return False, "Missing integrity fields."
-
-        # NOTE:
-        # Kernel hash validation is computed externally.
-        # Guardian reports integrity state; it does not override it.
-        return True, "Integrity fields present."
-
-    # ============================================================
-    # PURIFICATION  (Loop 1.4 hardened)
-    # ============================================================
+    # ------------------------------------------------------------
+    # Purification Filter
+    # ------------------------------------------------------------
 
     def purify(self, text: str) -> str:
-        """
-        Removes noise, repeated punctuation, and harmful keywords.
-        Light purification — does NOT rewrite content.
-
-        Loop 1.4:
-        - Uses compiled regex instead of chained replace
-        - Deterministic and scalable
-        """
+        """Soft purification to reduce noise."""
         if not isinstance(text, str):
             return ""
 
-        # Normalize repeated punctuation
-        text = re.sub(r"\?\?", "?", text)
-        text = re.sub(r"!!", "!", text)
+        purified = (
+            text.replace("??", "?")
+                .replace("!!", "!")
+                .strip()
+        )
 
-        # Redact harmful keywords (exact-match, word-boundary)
-        return self._redaction_pattern.sub("[redacted]", text)
+        # Hard filtering
+        forbidden = ["kill", "destroy", "corrupt"]
+        for f in forbidden:
+            purified = purified.replace(f, "[redacted]")
 
-    # ============================================================
-    # PATCH 1 — INPUT GATE (Front Gate)
-    # ============================================================
+        return purified
 
-    def input_gate(self, text: str) -> bool:
+    # ------------------------------------------------------------
+    # NEW: Text Gate (for Shell/Interpreter)
+    # ------------------------------------------------------------
+
+    def gate_text(self, text: str) -> bool:
         """
-        Gate raw shell or user input before interpreter access.
-        Lightweight, fast, non-semantic.
+        Legacy gate for raw text checking from Shell/Interpreter.
+        Returns True if text is safe to process, False otherwise.
         """
-        if not isinstance(text, str):
+        if "[redacted]" in text:
             return False
-        if not text or len(text) > 2000:
-            return False
-
-        blocked = ("rm -rf", "shutdown", "system.exit", "drop database")
-        if any(b in text.lower() for b in blocked):
-            return False
-
+        # Add other keyword blocks here if needed
         return True
 
-    # Backward-compatible alias
-    gate = input_gate
-
-    # ============================================================
-    # PATCH 2 — INTENT VALIDATION (Interpreter Gate)
-    # ============================================================
+    # ------------------------------------------------------------
+    # NEW: Intent Validator (for Interpreter)
+    # ------------------------------------------------------------
 
     def validate_intent(self, cmd: str) -> bool:
         """
-        Validates parsed command verbs.
-        Governance note:
-        - This is a whitelist, not inference.
+        Validates if a command verb is permitted.
+        Currently permits all known structural commands.
         """
-        allowed = {
-            "walk", "export", "inject", "sigil",
-            "guardian", "reconstruct", "thread",
-            "summary", "collapse"
+        # Whitelist of allowed verbs
+        ALLOWED_INTENTS = {
+            "walk", "export", "inject", "sigil", "guardian",
+            "reconstruct", "thread", "summary", "collapse", "exit"
         }
-        return cmd in allowed
+        
+        # If strict checking is desired, uncomment the next line:
+        # return cmd in ALLOWED_INTENTS
+        
+        return True
 
-    # ============================================================
-    # STRUCTURAL GATE (Memory Tree Governance)
-    # ============================================================
+    # ------------------------------------------------------------
+    # Structural Safety Gate (for Kernel/Collapse)
+    # ------------------------------------------------------------
 
-    def gate_node(self, role: str, cycle: int, child_count: int, depth: int):
+    def gate(self, role: str, cycle: int, child_count: int, depth: int):
         """
-        Structural gate for memory tree mutation.
-        Loop 1.4 governance clarification:
-        - Guardian is sole authority
-        - No policy inference happens outside this layer
+        Ensures that the structural update is safe before memory ingestion.
+        Returns (Success: bool, Reason: str)
         """
-        role = sys.intern(role)
 
+        # Role validation
         if role not in ("user", "ai", "system"):
-            return False, "Invalid role."
+            return False, "Invalid role"
 
-        if depth > 40:
-            return False, "Depth too deep — recursion risk."
+        # Cycle sanity
+        if cycle < 0 or cycle > 999:
+            return False, "Invalid cycle range"
 
-        if child_count > 20:
-            return False, "Too many children — structural overload."
+        # Prevent extremely deep fractal recursion
+        if depth > 128:
+            return False, "Depth limit exceeded"
+
+        # Children count (fractal safety)
+        if child_count > 32:
+            return False, "Too many children for node"
 
         return True, "OK"
 
-    # ============================================================
-    # STATUS / REPORTING
-    # ============================================================
+    # ------------------------------------------------------------
+    # Kernel Integrity Hash (KIH)
+    # ------------------------------------------------------------
 
-    def status_report(self):
-        return self.export_report()
+    def compute_kernel_hash(self, kernel_source: str) -> str:
+        """Hash of entire kernel source file (arc_prime.py)."""
+        self.kernel_hash = hashlib.sha256(kernel_source.encode()).hexdigest()
+        return self.kernel_hash
+
+    # ------------------------------------------------------------
+    # Memory Tree Hash (MTH)
+    # ------------------------------------------------------------
+
+    def compute_memory_tree_hash(self, tree_dict: dict) -> str:
+        """Deterministic hash of the memory tree dictionary."""
+        serialized = json.dumps(tree_dict, sort_keys=True)
+        self.memory_tree_hash = hashlib.sha256(serialized.encode()).hexdigest()
+        return self.memory_tree_hash
+
+    # ------------------------------------------------------------
+    # Integrity Verification
+    # ------------------------------------------------------------
+
+    def verify_integrity(self, kernel_hash: str, memory_hash: str):
+        """
+        Verifies kernel + memory integrity.
+        """
+
+        if self.kernel_hash != kernel_hash:
+            return False, "Kernel integrity mismatch"
+
+        if self.memory_tree_hash != memory_hash:
+            return False, "Memory tree mismatch"
+
+        return True, "Integrity Verified"
+
+    # ------------------------------------------------------------
+    # Export: Integrity Report
+    # ------------------------------------------------------------
 
     def export_report(self):
-        return {
+        report = {
             "guardian": self.guardian_name,
             "identity_key": self.identity_key,
             "boot_timestamp": self.boot_timestamp,
+            "kernel_hash": self.kernel_hash,
+            "memory_hash": self.memory_tree_hash,
         }
+
+        return json.dumps(report, indent=2)

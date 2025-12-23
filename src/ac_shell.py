@@ -99,7 +99,7 @@ class ArcConsole:
                 cleaned = self.guardian.purify(raw)
                 
                 # 3. Input Gating
-                if not self.guardian.input_gate(cleaned):
+                if not self.guardian.gate_text(cleaned):
                     print(f"{Colors.CYAN}[GUARDIAN] ⛔ Request Denied (Gate Policy).{Colors.ENDC}")
                     continue
 
